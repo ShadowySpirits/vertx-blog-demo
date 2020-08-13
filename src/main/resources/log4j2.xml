@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="30">
+    <Properties>
+        <Property name="LOG_PATH" value="./logs"/>
+        <Property name="CONSOLE_LAYOUT"
+                  value="%style{%d{yyyy-MM-dd HH:mm:ss}}{Blue} %highlight{${LOG_LEVEL_PATTERN:-%5p}}{FATAL=bg_red, ERROR=red, WARN=yellow, INFO=green, DEBUG=grey, TRACE=blue} %style{%pid}{magenta} --- %style{[%15.15t] %-c:}{yellow} %style{%m%n%ex}{Bright}"/>
+        <Property name="FILE_LAYOUT"
+                  value="%d{yyyy-MM-dd HH:mm:ss} ${LOG_LEVEL_PATTERN:-%5p} %pid --- [%15.15t] %-c: %m%n%ex"/>
+    </Properties>
+
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="${CONSOLE_LAYOUT}"/>
+        </Console>
+        <RollingFile name="RollingLogFile" fileName="${LOG_PATH}/blog.log"
+                     filePattern="${LOG_PATH}/blog.%d{yyyy-MM-dd}.%i.log.gz">
+            <PatternLayout pattern="${FILE_LAYOUT}"/>
+            <Policies>
+                <TimeBasedTriggeringPolicy/>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+        </RollingFile>
+    </Appenders>
+
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingLogFile"/>
+        </Root>
+    </Loggers>
+</Configuration>
