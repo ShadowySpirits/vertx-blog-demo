@@ -11,7 +11,8 @@ import kotlinx.coroutines.launch
 import org.koin.core.KoinComponent
 import org.koin.core.get
 import org.koin.core.parameter.parametersOf
-import top.sspirits.blog.annotation.RequestMap
+import top.sspirits.blog.annotation.*
+import top.sspirits.blog.util.AnnotationUtils
 import kotlin.reflect.KFunction
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.findAnnotation
@@ -19,7 +20,7 @@ import kotlin.reflect.full.memberFunctions
 import kotlin.reflect.jvm.isAccessible
 
 open class CustomVerticle : CoroutineVerticle(), KoinComponent {
-    protected val logger: Logger = LoggerFactory.getLogger(this.javaClass)
+    protected val logger: Logger = LoggerFactory.getLogger(this::class.java)
 
     private val router: Router by lazy { Router.router(vertx) }
     private lateinit var route: Route
@@ -28,19 +29,25 @@ open class CustomVerticle : CoroutineVerticle(), KoinComponent {
         var routeCount = 0
         var rootPath = "/"
 
-        this::class.findAnnotation<RequestMap>()?.let {
-            rootPath = it.path
+        this::class.findAnnotation<Service>()?.let {
+            rootPath = it.mountPoint
         }
 
         this::class.memberFunctions.forEach { func ->
-            func.findAnnotation<RequestMap>()?.let { requestMap ->
-                routeCount++
-                func.isAccessible = true
-                val httpMethod = HttpMethod.valueOf(requestMap.method.name)
-
-                getVerticleRouter().route(httpMethod, requestMap.path).coroutineHandler(func)
-                logger.debug("add route: ${requestMap.method.name} ${rootPath}${requestMap.path}")
+            val requestMap = AnnotationUtils.findAnnotation(func, Path::class) ?: return
+            routeCount++
+            func.isAccessible = true
+            val httpMethod = HttpMethod.valueOf(requestMap.method.name)
+            val path = when (requestMap.method) {
+                top.sspirits.blog.base.HttpMethod.GET -> func.findAnnotation<Get>()?.path ?: requestMap.path
+                top.sspirits.blog.base.HttpMethod.POST -> func.findAnnotation<Post>()?.path ?: requestMap.path
+                top.sspirits.blog.base.HttpMethod.PUT -> func.findAnnotation<Put>()?.path ?: requestMap.path
+                top.sspirits.blog.base.HttpMethod.DELETE -> func.findAnnotation<Delete>()?.path ?: requestMap.path
+                else -> requestMap.path
             }
+
+            getVerticleRouter().route(httpMethod, path).coroutineHandler(func)
+            logger.debug("add route: ${requestMap.method.name} ${rootPath}${path}")
         }
 
         if (routeCount > 0) {

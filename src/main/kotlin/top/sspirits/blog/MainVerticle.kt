@@ -14,12 +14,12 @@ import org.koin.logger.slf4jLogger
 import top.sspirits.blog.base.CustomVerticle
 import top.sspirits.blog.base.appModule
 import top.sspirits.blog.middleware.AccessLogHandler
-import top.sspirits.blog.service.RestVerticle
+import top.sspirits.blog.util.ClassUtils
 import kotlin.reflect.KClass
 
 class MainVerticle : CustomVerticle() {
     // Map<verticleClass, deploymentID>
-    private val deploymentMap: HashMap<KClass<out CustomVerticle>, String> = HashMap()
+    private val deploymentMap = HashMap<KClass<out CustomVerticle>, String>()
     private lateinit var httpServer: HttpServer
 
     override suspend fun start() {
@@ -40,7 +40,7 @@ class MainVerticle : CustomVerticle() {
         }
 
         // deploy services
-        deployServices(listOf(RestVerticle::class))
+        deployServices(ClassUtils.getServices("top.sspirits.blog"))
 
         // start http server
         httpServer = vertx.createHttpServer()

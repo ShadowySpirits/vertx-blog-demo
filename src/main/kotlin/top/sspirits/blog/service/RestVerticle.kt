@@ -5,18 +5,18 @@ import io.vertx.core.json.JsonObject
 import io.vertx.ext.web.RoutingContext
 import io.vertx.kotlin.core.json.json
 import io.vertx.kotlin.core.json.obj
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import org.koin.ext.scope
+import top.sspirits.blog.annotation.Get
+import top.sspirits.blog.annotation.Path
+import top.sspirits.blog.annotation.Post
+import top.sspirits.blog.annotation.Service
 import top.sspirits.blog.base.CustomVerticle
 import top.sspirits.blog.base.HttpMethod
-import top.sspirits.blog.annotation.RequestMap
 import top.sspirits.blog.extension.sendError
 
-@RequestMap(path = "/schema")
+@Service("/schema")
 class RestVerticle : CustomVerticle() {
 
-    @RequestMap(path = "/all")
+    @Path(HttpMethod.GET, "/all")
     fun getAllSchemas(ctx: RoutingContext) {
         val allSchemasJson = json {
             obj(
@@ -28,7 +28,7 @@ class RestVerticle : CustomVerticle() {
             .end(allSchemasJson.encode())
     }
 
-    @RequestMap(path = "/:id")
+    @Get("/:id")
     fun getSchema(ctx: RoutingContext) {
         val schemaJson = JsonObject()
         ctx.addEndHandler {
@@ -40,7 +40,7 @@ class RestVerticle : CustomVerticle() {
             .end(schemaJson.encode())
     }
 
-    @RequestMap(path = "/", method = HttpMethod.POST)
+    @Post("/")
     fun postSchema(ctx: RoutingContext) {
         val schemaJson = JsonObject()
         schemaJson.let {
