@@ -2,25 +2,24 @@ package top.sspirits.blog.util
 
 import io.vertx.core.impl.logging.Logger
 import io.vertx.core.impl.logging.LoggerFactory
-import top.sspirits.blog.annotation.Service
-import top.sspirits.blog.base.CustomVerticle
 import java.io.File
 import java.io.IOException
 import java.net.JarURLConnection
 import java.net.URL
 import java.net.URLDecoder
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.jar.JarEntry
 import java.util.jar.JarFile
 import kotlin.collections.ArrayList
 import kotlin.reflect.KClass
-import kotlin.reflect.full.findAnnotation
 import kotlin.reflect.full.isSubclassOf
 
 class ClassUtils {
 
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(ClassUtils::class.java)
+        private val classMap = ConcurrentHashMap<String, List<KClass<*>>>()
 
         private fun findAndAddClassesInPackageByFile(
             packageName: String, packagePath: String, recursive: Boolean,
@@ -49,11 +48,13 @@ class ClassUtils {
             }
         }
 
-        @Suppress("NAME_SHADOWING")
         fun getClasses(packageName: String, recursive: Boolean = true): List<KClass<*>> {
-            var packageName = packageName
+            classMap[packageName]?.let {
+                return it
+            }
+            var pkg = packageName
             val classes = ArrayList<KClass<*>>()
-            val packageDirName = packageName.replace('.', '/')
+            val packageDirName = pkg.replace('.', '/')
             val dirs: Enumeration<URL>
             try {
                 dirs = Thread.currentThread().contextClassLoader.getResources(packageDirName)
@@ -62,7 +63,7 @@ class ClassUtils {
                     val protocol: String = url.protocol
                     if ("file" == protocol) {
                         val filePath = URLDecoder.decode(url.file, "UTF-8")
-                        findAndAddClassesInPackageByFile(packageName, filePath, recursive, classes)
+                        findAndAddClassesInPackageByFile(pkg, filePath, recursive, classes)
                     } else if ("jar" == protocol) {
                         // TODO 这个分支待验证
                         // 如果是jar包文件
@@ -89,17 +90,17 @@ class ClassUtils {
                                     // 如果以"/"结尾 是一个包
                                     if (idx != -1) {
                                         // 获取包名 把"/"替换成"."
-                                        packageName = name.substring(0, idx).replace('/', '.')
+                                        pkg = name.substring(0, idx).replace('/', '.')
                                     }
                                     // 如果可以迭代下去 并且是一个包
                                     if (idx != -1 || recursive) {
                                         // 如果是一个.class文件 而且不是目录
                                         if (name.endsWith(".class") && !entry.isDirectory) {
                                             // 去掉后面的".class" 获取真正的类名
-                                            val className = name.substring(packageName.length + 1, name.length - 6)
+                                            val className = name.substring(pkg.length + 1, name.length - 6)
                                             try {
                                                 // 添加到classes
-                                                classes.add(Class.forName("$packageName.$className").kotlin)
+                                                classes.add(Class.forName("$pkg.$className").kotlin)
                                             } catch (e: ClassNotFoundException) {
                                                 e.printStackTrace()
                                             }
@@ -115,21 +116,47 @@ class ClassUtils {
             } catch (e: IOException) {
                 logger.error("can not open $packageDirName", e)
             }
+            classMap[packageName] = classes
             return classes
         }
 
-        @Suppress("UNCHECKED_CAST")
-        fun getServices(packageName: String): List<KClass<out CustomVerticle>> {
-            val services = ArrayList<KClass<out CustomVerticle>>()
-            val clsList = getClasses(packageName)
-            for (cls in clsList) {
+        fun findClassesWithAnnotation(
+            packageName: String,
+            targetAnnotation: KClass<out Annotation>
+        ): List<KClass<*>> {
+            val annotatedClasses = ArrayList<KClass<*>>()
+            val classes = getClasses(packageName)
+            for (cls in classes) {
                 try {
                     if (!cls.java.isAnonymousClass &&
                         !cls.java.isSynthetic &&
-                        cls.isSubclassOf(CustomVerticle::class) &&
-                        cls.findAnnotation<Service>() != null
+                        cls.annotations.any { targetAnnotation.isInstance(it) }
                     ) {
-                        services.add(cls as KClass<CustomVerticle>)
+                        annotatedClasses.add(cls)
+                    }
+                } catch (e: UnsupportedOperationException) {
+                    logger.debug(e)
+                }
+            }
+            return annotatedClasses
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        fun <C : Any> findTypedClassesWithAnnotation(
+            packageName: String,
+            targetAnnotation: KClass<out Annotation>,
+            targetClass: KClass<C>
+        ): List<KClass<C>> {
+            val services = ArrayList<KClass<C>>()
+            val classes = getClasses(packageName)
+            for (cls in classes) {
+                try {
+                    if (!cls.java.isAnonymousClass &&
+                        !cls.java.isSynthetic &&
+                        cls.isSubclassOf(targetClass) &&
+                        cls.annotations.any { targetAnnotation.isInstance(it) }
+                    ) {
+                        services.add(cls as KClass<C>)
                     }
                 } catch (e: UnsupportedOperationException) {
                     logger.debug(e)

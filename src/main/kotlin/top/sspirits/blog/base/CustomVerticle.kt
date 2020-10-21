@@ -34,7 +34,7 @@ open class CustomVerticle : CoroutineVerticle(), KoinComponent {
         }
 
         this::class.memberFunctions.forEach { func ->
-            val requestMap = AnnotationUtils.findAnnotation(func, Path::class) ?: return
+            val requestMap = AnnotationUtils.findAnnotation(func, Path::class) ?: return@forEach
             routeCount++
             func.isAccessible = true
             val httpMethod = HttpMethod.valueOf(requestMap.method.name)

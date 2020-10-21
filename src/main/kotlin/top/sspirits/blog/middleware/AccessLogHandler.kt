@@ -7,7 +7,9 @@ import io.vertx.core.http.HttpVersion
 import io.vertx.core.impl.logging.Logger
 import io.vertx.core.impl.logging.LoggerFactory
 import io.vertx.ext.web.RoutingContext
+import top.sspirits.blog.annotation.Component
 
+@Component
 class AccessLogHandler : Handler<RoutingContext> {
     private val logger: Logger = LoggerFactory.getLogger("[AccessLog]")
     private val slowLogger: Logger = LoggerFactory.getLogger("[SlowLog]")
